@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>LOTTO SCAN V4</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#06111e;color:#f5f8ff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans Thai",sans-serif}
+.app{max-width:900px;margin:auto;padding:14px 12px 110px}.head{display:flex;justify-content:space-between;gap:8px;align-items:center}.logo{font-size:27px;font-weight:900}.logo i{color:#19b5ff;font-style:normal}.sub{font-size:12px;color:#91a7be}
+.btn{border:1px solid #244d70;background:#102942;color:#fff;border-radius:14px;padding:12px 14px;font-weight:800;font-size:14px}.primary{background:linear-gradient(135deg,#087ad5,#15baff);border:0}.green{background:linear-gradient(135deg,#079c4b,#20e874);border:0;color:#03150b}
+.bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:13px 0}.bar .active{outline:2px solid #19b5ff}.card{background:#0b1d31;border:1px solid #1c405f;border-radius:18px;padding:12px;margin:10px 0}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stat{text-align:center;background:#081625;border-radius:12px;padding:9px}.stat b{display:block;font-size:20px}.stat small{color:#91a7be}
+.photo{position:relative;background:#02070d;border-radius:14px;overflow:hidden;border:1px solid #244d70;margin-top:10px}.photo img{display:block;width:100%;height:auto}.box{position:absolute;border:2px solid #20ee75;background:#20ee7520;border-radius:3px;pointer-events:none}.box.low{border-color:#ffd83d;background:#ffd83d20}.box.off{border-color:#ff4e68;background:#ff4e6820}.tag{position:absolute;background:#081625dd;color:#fff;border:1px solid #20ee75;border-radius:6px;padding:2px 5px;font-size:10px;transform:translateY(-100%);pointer-events:none}
+.results{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.num{position:relative;background:#0b2035;border:1px solid #315e84;border-radius:10px;padding:11px 5px;text-align:center;font-weight:900;touch-action:manipulation}.num.on{border-color:#1fec72;background:#0d3b28}.num.off{opacity:.38;text-decoration:line-through}.num.low{border-color:#ffd83d}.num .x{position:absolute;right:4px;top:2px;font-size:9px;color:#91a7be}.edit{width:100%;background:#071321;border:1px solid #315e84;color:#fff;border-radius:7px;padding:7px;text-align:center;font-weight:800}.row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.row .btn{flex:1;min-width:125px}.hint{color:#91a7be;font-size:12px;line-height:1.5;margin:8px 2px}.empty{text-align:center;color:#91a7be;padding:35px 10px}.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#122d48;border:1px solid #37688e;padding:11px 17px;border-radius:999px;display:none;z-index:30;max-width:92%;text-align:center}.sheet{position:fixed;inset:auto 0 0;background:#09192a;border-top:1px solid #2c5879;padding:12px;z-index:25;display:none}.sheet input{width:100%;padding:13px;border-radius:10px;border:1px solid #315e84;background:#06111e;color:white;font-size:18px;text-align:center}.file{display:none}
+.progress{height:8px;background:#081625;border-radius:99px;overflow:hidden;margin-top:10px;display:none}.progress>div{height:100%;width:0;background:#20e874;transition:width .2s}.status{font-size:12px;color:#9ab0c5;margin-top:6px;min-height:18px}
+body.day{background:#eef4f8;color:#102033}body.day .card,body.day .stat,body.day .num{background:#fff;color:#102033}body.day .sub,body.day .hint,body.day .stat small{color:#587087}body.day .btn{background:#fff;color:#102033;border-color:#b7cddd}
+@media(min-width:600px){.results{grid-template-columns:repeat(6,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div><div class="logo">LOTTO <i>SCAN</i></div><div class="sub">V4 • ตรวจเลขบนรูปก่อนคัดลอก</div></div>
+    <div class="row" style="margin:0">
+      <button class="btn" onclick="openSettings()">⚙️ ตั้งค่า</button>
+      <button class="btn" onclick="resetAll()">ล้างงาน</button>
+    </div>
+  </div>
+
+  <div class="bar">
+    <button class="btn active" id="tableMode" onclick="setMode('table')">🟦 ตารางเลือก</button>
+    <button class="btn" id="autoMode" onclick="setMode('auto')">🟩 สแกนแบบ LINE</button>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button class="btn primary" onclick="file.click()">🖼️ เพิ่มหลายรูป</button>
+      <button class="btn green" onclick="scanAll()">🔍 สแกนทั้งหมด</button>
+    </div>
+    <input class="file" id="file" type="file" accept="image/*" multiple>
+    <div class="hint">ระบบ V4 แก้ปัญหาสแกนไม่ผ่านแล้ว • อ่านภาพเป็นหลายส่วนเพื่อช่วยเลขตัวเล็ก • ไม่ลบเลขซ้ำ</div>
+    <div class="progress" id="progress"><div id="progressBar"></div></div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="all">0</b><small>เลขทั้งหมด</small></div>
+    <div class="stat"><b id="ok">0</b><small>เลือกคัดลอก</small></div>
+    <div class="stat"><b id="review">0</b><small>ควรตรวจ</small></div>
+  </div>
+
+  <div id="photos"></div>
+
+  <div class="card">
+    <div class="hint">แตะเลขเพื่อเปิด/ปิด • กด ✏️ เพื่อแก้ • ในโหมด LINE จะเห็นกรอบสีเขียวบนรูป</div>
+    <div class="row">
+      <button class="btn" onclick="selectAll(true)">☑️ เลือกทั้งหมด</button>
+      <button class="btn" onclick="selectAll(false)">☐ ยกเลิกทั้งหมด</button>
+      <button class="btn" onclick="selectHigh()">🟢 เลือกมั่นใจสูง</button>
+      <button class="btn green" onclick="copySelected()">📋 คัดลอกที่เลือก</button>
+    </div>
+  </div>
+  <div id="results"></div>
+</div>
+
+<div class="sheet" id="editSheet">
+  <input id="editInput" inputmode="numeric" maxlength="6">
+  <div class="row"><button class="btn" onclick="closeEdit()">ยกเลิก</button><button class="btn green" onclick="saveEdit()">บันทึกเลข</button></div>
+</div>
+
+<div class="sheet" id="manualSheet">
+  <div style="font-size:18px;font-weight:900">➕ เพิ่มเลขที่อ่านไม่เจอ</div>
+  <div class="hint">ลากกรอบบนรูปบริเวณเลข 6 หลัก แล้วกดอ่าน</div>
+  <button class="btn green" style="width:100%" onclick="readManual()">🔍 อ่านบริเวณนี้</button>
+  <button class="btn" style="width:100%;margin-top:7px" onclick="closeManual()">ปิด</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="sheet" id="settingsSheet">
+  <div style="font-size:20px;font-weight:900;margin-bottom:8px">⚙️ ตั้งค่าแอป</div>
+  <div class="hint" id="thresholdText"></div>
+  <div class="row">
+    <button class="btn" onclick="setTheme('day')">☀️ กลางวัน</button>
+    <button class="btn" onclick="setTheme('night')">🌙 กลางคืน</button>
+  </div>
+  <div class="row">
+    <button class="btn" onclick="setThreshold(60)">60%</button>
+    <button class="btn" onclick="setThreshold(70)">70%</button>
+    <button class="btn" onclick="setThreshold(80)">80%</button>
+  </div>
+  <button class="btn green" style="width:100%;margin-top:7px" onclick="closeSettings()">✓ เสร็จ</button>
+</div>
+
+<script>
+let mode='auto', images=[], items=[], editIndex=-1, threshold=70, worker=null, manualState=null;
+const file=document.getElementById('file');
+
+function $(id){return document.getElementById(id)}
+function toast(s){$('toast').textContent=s;$('toast').style.display='block';clearTimeout(window.__t);window.__t=setTimeout(()=>$('toast').style.display='none',2600)}
+function setStatus(s,p){
+  $('status').textContent=s||'';
+  if(typeof p==='number'){$('progress').style.display='block';$('progressBar').style.width=Math.max(0,Math.min(100,p))+'%'}
+}
+function setMode(m){mode=m;$('tableMode').classList.toggle('active',m==='table');$('autoMode').classList.toggle('active',m==='auto');renderPhotos()}
+function loadFile(f){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(f)})}
+function makeCanvas(img,sx,sy,sw,sh,scale=2,enhance=true){
+  const c=document.createElement('canvas'); c.width=Math.max(1,Math.floor(sw*scale)); c.height=Math.max(1,Math.floor(sh*scale));
+  const x=c.getContext('2d',{willReadFrequently:true}); x.drawImage(img,sx,sy,sw,sh,0,0,c.width,c.height);
+  if(enhance){
+    const d=x.getImageData(0,0,c.width,c.height), a=d.data;
+    for(let i=0;i<a.length;i+=4){let g=0.299*a[i]+0.587*a[i+1]+0.114*a[i+2]; g=(g-128)*1.45+128; g=Math.max(0,Math.min(255,g)); a[i]=a[i+1]=a[i+2]=g}
+    x.putImageData(d,0,0);
+  }
+  return c;
+}
+function normalize6(s){
+  let t=(s||'').replace(/[^0-9]/g,'');
+  if(t.length===6)return t;
+  // common OCR substitutions, only when a 6-character token is already present
+  let r=(s||'').trim().replace(/[OoQ]/g,'0').replace(/[Il|]/g,'1').replace(/[Ss]/g,'5').replace(/[Bb]/g,'8').replace(/[Gg]/g,'6').replace(/[^0-9]/g,'');
+  return r.length===6?r:null;
+}
+function addWords(data,offX,offY,scale,imgIndex,out){
+  const words=data.words||[];
+  for(const w of words){
+    const raw=(w.text||'').trim();
+    const m=raw.match(/[0-9OoQIl|SsBbGg]{6}/g)||[];
+    for(const token of m){
+      const n=normalize6(token); if(!n)continue;
+      const b=w.bbox||{x0:0,y0:0,x1:1,y1:1};
+      out.push({num:n,conf:Number(w.confidence)||0,imgIndex,bbox:{x0:offX+b.x0/scale,y0:offY+b.y0/scale,x1:offX+b.x1/scale,y1:offY+b.y1/scale},selected:true});
+    }
+  }
+}
+function spatialKey(it){
+  const b=it.bbox; return it.imgIndex+'|'+Math.round((b.x0+b.x1)/2/18)+'|'+Math.round((b.y0+b.y1)/2/18)
+}
+function mergeNearby(arr){
+  const out=[];
+  for(const it of arr){
+    let dup=-1;
+    for(let i=0;i<out.length;i++){
+      const a=out[i], dx=Math.abs(((a.bbox.x0+a.bbox.x1)-(it.bbox.x0+it.bbox.x1))/2), dy=Math.abs(((a.bbox.y0+a.bbox.y1)-(it.bbox.y0+it.bbox.y1))/2);
+      if(a.imgIndex===it.imgIndex && a.num===it.num && dx<25 && dy<25){dup=i;break}
+    }
+    if(dup<0)out.push(it); else if(it.conf>out[dup].conf)out[dup]=it;
+  }
+  return out;
+}
+async function getWorker(){
+  if(!window.Tesseract) throw new Error('OCR library not loaded');
+  worker=await Tesseract.createWorker('eng',1,{logger:m=>{
+    if(m&&typeof m.progress==='number') setStatus('กำลังโหลด/อ่าน OCR…',m.progress*100);
+  }});
+  await worker.setParameters({tessedit_char_whitelist:'0123456789',tessedit_pageseg_mode:'11',preserve_interword_spaces:'1',user_defined_dpi:'300'});
+  return worker;
+}
+async function ocrCanvas(c){
+  const r=await worker.recognize(c,{}, {blocks:true});
+  return r.data||{};
+}
+async function scanAll(){
+  if(!images.length){toast('เพิ่มรูปก่อนครับ');return}
+  $('progress').style.display='block'; items=[]; images.forEach(x=>x.items=[]); render();
+  let localWorker=null;
+  try{
+    setStatus('กำลังเริ่ม OCR…',0); toast('กำลังเริ่มอ่านรูป');
+    localWorker=await getWorker();
+    for(let pi=0;pi<images.length;pi++){
+      const img=await loadFile(images[pi].file);
+      const found=[];
+      // Pass 1: whole image, upscaled
+      setStatus(`รูป ${pi+1}/${images.length} • รอบแรก`,(pi/images.length)*100);
+      const full=makeCanvas(img,0,0,img.naturalWidth,img.naturalHeight,1.6,true);
+      addWords(await ocrCanvas(full),0,0,1.6,pi,found);
+      // Pass 2: overlapping tiles for dense/small lottery numbers
+      const cols=3, rows=4, overlap=.10;
+      for(let ry=0;ry<rows;ry++) for(let cx=0;cx<cols;cx++){
+        const tw=img.naturalWidth/cols, th=img.naturalHeight/rows;
+        const sx=Math.max(0,cx*tw-tw*overlap), sy=Math.max(0,ry*th-th*overlap);
+        const ex=Math.min(img.naturalWidth,(cx+1)*tw+tw*overlap), ey=Math.min(img.naturalHeight,(ry+1)*th+th*overlap);
+        const c=makeCanvas(img,sx,sy,ex-sx,ey-sy,2.2,true);
+        const data=await ocrCanvas(c);
+        addWords(data,sx,sy,2.2,pi,found);
+        setStatus(`รูป ${pi+1}/${images.length} • กำลังอ่านส่วน ${ry*cols+cx+1}/12`,((pi+ (ry*cols+cx+1)/12)/images.length)*100);
+      }
+      images[pi].items=mergeNearby(found);
+      items.push(...images[pi].items);
+      renderPhotos();renderResults();
+    }
+    setStatus(`เสร็จแล้ว • พบ ${items.length} เลข`,100);
+    toast(`เสร็จแล้ว ${items.length} เลข`);
+  }catch(e){
+    console.error(e);
+    setStatus('เกิดข้อผิดพลาด: '+(e?.message||e),0);
+    toast('OCR เปิดไม่สำเร็จ • ลองกดสแกนอีกครั้ง');
+  }finally{
+    try{if(localWorker)await localWorker.terminate()}catch{}
+    worker=null;
+  }
+}
+function renderPhotos(){
+  $('photos').innerHTML='';
+  images.forEach((im,pi)=>{
+    const card=document.createElement('div');card.className='card';
+    const title=document.createElement('b');title.textContent=`รูปที่ ${pi+1} • ${im.items.length} เลข`;card.appendChild(title);
+    const ph=document.createElement('div');ph.className='photo';
+    const image=document.createElement('img');image.src=im.url;ph.appendChild(image);
+    const W=im.naturalWidth||1,H=im.naturalHeight||1;
+    if(mode==='auto'){
+      for(let ii=0;ii<im.items.length;ii++){
+        const it=im.items[ii], b=it.bbox;
+        const box=document.createElement('div');box.className='box'+(it.conf<threshold?' low':'');
+        box.style.left=(b.x0/W*100)+'%';box.style.top=(b.y0/H*100)+'%';box.style.width=Math.max(1,(b.x1-b.x0)/W*100)+'%';box.style.height=Math.max(1,(b.y1-b.y0)/H*100)+'%';
+        if(!it.selected)box.classList.add('off'); box.title=it.num+' • '+Math.round(it.conf)+'%';
+        ph.appendChild(box);
+      }
+    }
+    card.appendChild(ph);
+    const hint=document.createElement('div');hint.className='hint';hint.textContent=mode==='auto'?'🟢 กรอบเขียว = พบเลข • 🟡 = ควรตรวจ • แตะเลขด้านล่างเพื่อปิด/เปิด':'แตะเลขด้านล่างเพื่อเลือก/ยกเลิก';
+    card.appendChild(hint);$('photos').appendChild(card);
+  });
+}
+function renderResults(){
+  $('all').textContent=items.length;$('ok').textContent=items.filter(x=>x.selected).length;$('review').textContent=items.filter(x=>x.conf<threshold).length;
+  const r=$('results');r.innerHTML='';
+  if(!items.length){r.innerHTML='<div class="empty">ยังไม่มีเลข • เพิ่มรูปแล้วกด “สแกนทั้งหมด”</div>';return}
+  items.forEach((it,i)=>{
+    const d=document.createElement('div');d.className='num '+(it.selected?'on':'off')+(it.conf<threshold?' low':'');
+    d.innerHTML=`<div>${it.num}</div><div class="x">${Math.round(it.conf)}%</div><button class="edit" onclick="event.stopPropagation();openEdit(${i})">✏️ แก้</button>`;
+    d.onclick=()=>{it.selected=!it.selected;renderResults();renderPhotos()};
+    r.appendChild(d);
+  });
+}
+function selectAll(v){items.forEach(x=>x.selected=v);renderResults();renderPhotos()}
+function selectHigh(){items.forEach(x=>x.selected=x.conf>=threshold);renderResults();renderPhotos()}
+function openEdit(i){editIndex=i;$('editInput').value=items[i].num;$('editSheet').style.display='block';setTimeout(()=>$('editInput').focus(),50)}
+function closeEdit(){$('editSheet').style.display='none';editIndex=-1}
+function saveEdit(){if(editIndex<0)return;const n=$('editInput').value.replace(/\D/g,'');if(!/^\d{6}$/.test(n)){toast('ต้องเป็นเลข 6 หลัก');return}items[editIndex].num=n;closeEdit();renderResults();renderPhotos()}
+async function copySelected(){
+  const s=items.filter(x=>x.selected).map(x=>x.num).join('\\n');
+  if(!s){toast('ยังไม่ได้เลือกเลข');return}
+  try{await navigator.clipboard.writeText(s);toast(`คัดลอกแล้ว ${s.split('\\n').length} เลข`)}catch{toast('คัดลอกอัตโนมัติไม่ได้ ให้เลือกคัดลอกข้อความด้วยตนเอง')}
+}
+function resetAll(){images=[];items=[];file.value='';render();setStatus('',0)}
+function render(){renderPhotos();renderResults()}
+file.onchange=async e=>{
+  const fs=[...e.target.files||[]]; if(!fs.length)return;
+  for(const f of fs){const im=await loadFile(f);images.push({file:f,url:URL.createObjectURL(f),naturalWidth:im.naturalWidth,naturalHeight:im.naturalHeight,items:[]})}
+  render();toast(`เพิ่ม ${fs.length} รูปแล้ว`);
+}
+function openSettings(){thresholdText.textContent=`ระดับตรวจตอนนี้ ${threshold}% • เลขต่ำกว่านี้จะขึ้นสีเหลือง`;settingsSheet.style.display='block'}
+function closeSettings(){settingsSheet.style.display='none'}
+function setThreshold(v){threshold=v;localStorage.setItem('lottoThreshold',v);openSettings();render()}
+function setTheme(v){localStorage.setItem('lottoTheme',v);applyTheme();toast(v==='day'?'โหมดกลางวัน':'โหมดกลางคืน')}
+function applyTheme(){document.body.classList.toggle('day',localStorage.getItem('lottoTheme')==='day')}
+applyTheme(); render();
+</script>
+</body>
+</html>
