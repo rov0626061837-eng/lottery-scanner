@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<title>LOTTO SCAN V5</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#07111f;color:#f5f7fb;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans Thai",sans-serif}
+header{position:sticky;top:0;z-index:5;padding:14px;background:rgba(7,17,31,.96);backdrop-filter:blur(15px);border-bottom:1px solid #20344e}
+.top{display:flex;justify-content:space-between;align-items:center}.title{font-size:21px;font-weight:900}.sub{font-size:12px;color:#9fb0c5;margin-top:3px}
+main{max-width:950px;margin:auto;padding:14px 14px 80px}.card{background:#0d1a2c;border:1px solid #20344e;border-radius:18px;padding:14px;margin-bottom:12px}
+.pick{display:block;text-align:center;background:#238cff;padding:15px;border-radius:14px;font-weight:900}input[type=file]{display:none}
+button{font:inherit}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:1px solid #294462;background:#14263d;color:#fff;border-radius:12px;padding:11px 13px;font-weight:800}.green{background:#0d9f5b;border-color:#19d77c}.red{background:#3b1721;border-color:#713040;color:#ffb0ba}
+.progress{height:7px;background:#091321;border-radius:99px;overflow:hidden;margin-top:10px}.bar{height:100%;width:0;background:#18d77b;transition:.2s}.status{font-size:13px;color:#a8b8ca;margin-top:9px;line-height:1.5}
+.count{font-size:18px;font-weight:900}.hint{font-size:12px;color:#9fb0c5;line-height:1.5}
+.preview{position:relative;overflow:hidden;border-radius:14px;background:#000;border:1px solid #294462;margin-top:9px}.preview img{width:100%;display:block}.overlay{position:absolute;inset:0}
+.box{position:absolute;border:2px solid #18d77b;background:rgba(24,215,123,.11);border-radius:4px;pointer-events:auto;color:#fff;padding:1px 3px;font-weight:900;font-size:10px;overflow:hidden}
+.box.review{border-color:#ffc928;background:rgba(255,201,40,.12)}.box.off{border-color:#ff5364;background:rgba(255,83,100,.08);opacity:.45}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px}.n{padding:10px;border-radius:12px;background:#0a1728;border:1px solid #25405e}.n b{font-size:20px;letter-spacing:1px}.n small{display:block;color:#91a4b9;margin-top:3px}.n button{width:100%;margin-top:7px}
+.toast{position:fixed;left:50%;bottom:25px;transform:translateX(-50%);z-index:20;background:#16283e;border:1px solid #355271;padding:11px 15px;border-radius:12px;display:none}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:30;display:none;align-items:flex-end}.modal.open{display:flex}.sheet{width:100%;background:#0c192b;border-radius:22px 22px 0 0;padding:18px;border:1px solid #294462}.sheet h2{margin-top:0}
+</style>
+</head>
+<body>
+<header><div class="top"><div><div class="title">🎟️ LOTTO SCAN V5</div><div class="sub">สแกนเลข 6 หลัก • คัดลอกทั้งหมดที่อ่านพบ</div></div><button class="btn" id="settings">⚙️</button></div></header>
+<main>
+<section class="card">
+<label class="pick">📷 เลือกรูปสลากหลายรูป<input id="files" type="file" accept="image/*" multiple></label>
+<div class="row" style="margin-top:10px">
+<button class="btn green" id="scan">▶️ สแกนทั้งหมด</button>
+<button class="btn" id="copy">📋 คัดลอกทั้งหมด</button>
+<button class="btn" id="copyOn">📋 คัดลอกที่เปิด</button>
+<button class="btn red" id="clear">ล้าง</button>
+</div>
+<div class="status" id="status">ยังไม่มีรูป</div><div class="progress"><div class="bar" id="bar"></div></div>
+</section>
+
+<section class="card">
+<div class="row"><span class="count" id="count">พบ 0 เลข</span><span class="count" id="on">เปิด 0</span></div>
+<div class="hint">V5 ใช้หลายรอบ OCR + แบ่งภาพเป็นช่องทับซ้อน + อ่านข้อความแบบกระจายและบรรทัด แล้วรวมเฉพาะเลข 6 หลัก โดยไม่ลบเลขซ้ำจากคนละใบ</div>
+</section>
+
+<div id="pics"></div>
+<section class="card"><b>รายการเลขทั้งหมด</b><div id="list" class="grid" style="margin-top:9px"></div></section>
+</main>
+<div class="modal" id="modal"><div class="sheet"><div class="top"><h2>⚙️ ตั้งค่า</h2><button class="btn" id="close">✕</button></div>
+<p class="hint">โหมดนี้เน้น “คัดลอกทั้งหมด” เป็นหลัก เลขที่ OCR อ่านไม่ออกจะไม่สามารถคัดลอกได้จนกว่าจะลากกรอบเพิ่มเอง</p>
+<div class="row"><button class="btn" id="quality">คุณภาพ: สูง</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+let imgs=[],res=[],worker=null,busy=false,high=true;
+
+function toast(t){let e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(window.x);window.x=setTimeout(()=>e.style.display='none',1800)}
+function status(t,p){$('#status').textContent=t;if(p!=null)$('#bar').style.width=p+'%'}
+function clean(s){return (s||'').replace(/[^0-9]/g,'')}
+function conf(x){return Math.max(0,Math.min(100,Number(x||0)))}
+function valid(x){return /^\d{6}$/.test(x)}
+function update(){
+ $('#count').textContent='พบ '+res.length+' เลข';
+ $('#on').textContent='เปิด '+res.filter(x=>x.on).length;
+ let l=$('#list');l.innerHTML='';
+ res.forEach((r,i)=>{
+  let d=document.createElement('div');d.className='n';
+  d.innerHTML='<b>'+r.text+'</b><small>รูป '+(r.img+1)+' • '+Math.round(r.conf)+'%</small><button class="btn">'+(r.on?'ปิดเลขนี้':'เปิดเลขนี้')+'</button><button class="btn edit">✏️ แก้ไข</button>';
+  d.querySelector('.btn').onclick=()=>{r.on=!r.on;render()};
+  d.querySelector('.edit').onclick=()=>{let n=prompt('แก้เป็นเลข 6 หลัก',r.text);n=clean(n);if(valid(n)){r.text=n;r.conf=100;render()}};
+  l.appendChild(d)
+ })
+}
+function render(){
+ let p=$('#pics');p.innerHTML='';
+ imgs.forEach((im,k)=>{
+  let c=document.createElement('section');c.className='card';
+  c.innerHTML='<b>รูปที่ '+(k+1)+' • '+res.filter(x=>x.img===k).length+' เลข</b><div class="preview"><img src="'+im.url+'"><div class="overlay"></div></div><div class="row" style="margin-top:8px"><button class="btn" onclick="manual('+k+')">➕ ลากเพิ่มเลขที่พลาด</button></div>';
+  p.appendChild(c);
+  let pv=c.querySelector('.preview'),ov=c.querySelector('.overlay'),imge=c.querySelector('img');
+  res.filter(x=>x.img===k).forEach(r=>{
+   let b=document.createElement('button');b.className='box '+(!r.on?'off':'');
+   b.style.left=(r.x/imge.naturalWidth*100)+'%';b.style.top=(r.y/imge.naturalHeight*100)+'%';
+   b.style.width=(r.w/imge.naturalWidth*100)+'%';b.style.height=(r.h/imge.naturalHeight*100)+'%';b.textContent=r.text;
+   b.onclick=e=>{e.stopPropagation();r.on=!r.on;render()};ov.appendChild(b)
+  })
+ })
+ update()
+}
+function addFound(found,imgIdx,scaleX,scaleY,ox=0,oy=0){
+ for(const w of found){
+  let text=clean(w.text);
+  if(!valid(text))continue;
+  let b=w.bbox||{x0:0,y0:0,x1:0,y1:0};
+  let r={text,conf:conf(w.confidence),x:(b.x0+ox)*scaleX,y:(b.y0+oy)*scaleY,w:(b.x1-b.x0)*scaleX,h:(b.y1-b.y0)*scaleY,img:imgIdx,on:true};
+  // Spatial dedupe only. Same 6 digits in different tickets remain.
+  let dup=res.find(q=>q.img===imgIdx&&Math.abs(q.x-r.x)<Math.max(10,r.w*.20)&&Math.abs(q.y-r.y)<Math.max(10,r.h*.40));
+  if(dup){if(r.conf>dup.conf)Object.assign(dup,r)}else res.push(r)
+ }
+}
+async function getWorker(){
+ if(worker)return;
+ worker=await Tesseract.createWorker('eng',1,{logger:m=>{
+  if(m.status==='recognizing text'&&m.progress)status('OCR '+Math.round(m.progress*100)+'%',m.progress*100)
+ }});
+ await worker.setParameters({tessedit_char_whitelist:'0123456789',user_defined_dpi:'300',preserve_interword_spaces:'1'})
+}
+function prep(img,scale){
+ let c=document.createElement('canvas'),w=img.naturalWidth,h=img.naturalHeight,k=Math.min(1,2200/Math.max(w,h))*scale;
+ c.width=Math.round(w*k);c.height=Math.round(h*k);let x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,c.width,c.height);
+ let d=x.getImageData(0,0,c.width,c.height),a=d.data;
+ for(let i=0;i<a.length;i+=4){let g=.299*a[i]+.587*a[i+1]+.114*a[i+2];g=(g-128)*1.55+128;let v=g<170?0:255;a[i]=a[i+1]=a[i+2]=v}
+ x.putImageData(d,0,0);return c
+}
+async function pass(canvas,imgIdx,ox,oy,origW,origH,psm){
+ await worker.setParameters({tessedit_pageseg_mode:String(psm)});
+ let r=await worker.recognize(canvas,{rotateAuto:true},{blocks:true});
+ let sx=origW/canvas.width,sy=origH/canvas.height;
+ addFound(r.data.words||[],imgIdx,sx,sy,ox,oy)
+ // Parse OCR line text too: catches cases where Tesseract splits a ticket number.
+ for(const line of (r.data.lines||[])){
+  const m=(line.text||'').match(/\d{6}/g)||[];
+  if(m.length){
+   const b=line.bbox||{x0:0,y0:0,x1:canvas.width,y1:canvas.height};
+   for(const text of m){
+    let pos=(line.text||'').indexOf(text);
+    let frac=Math.max(0,pos)/(Math.max(1,(line.text||'').length));
+    let x0=b.x0+frac*(b.x1-b.x0), w=(b.x1-b.x0)/Math.max(1,(line.text||'').length)*6;
+    addFound([{text,confidence:line.confidence,bbox:{x0,y0:b.y0,x1:x0+w,y1:b.y1}}],imgIdx,sx,sy,ox,oy)
+   }
+  }
+ }
+}
+async function scanOne(im,idx){
+ let src=im.img,c=prep(src,high?1.75:1.35),tiles=high?7:5,over=.20,tw=c.width/tiles;
+ // full sparse-text pass
+ await pass(c,idx,0,0,src.naturalWidth,src.naturalHeight,11);
+ for(let i=0;i<tiles;i++){
+  let x0=Math.max(0,Math.floor(i*tw-tw*over)),x1=Math.min(c.width,Math.ceil((i+1)*tw+tw*over));
+  let tile=document.createElement('canvas');tile.width=x1-x0;tile.height=c.height;tile.getContext('2d').drawImage(c,x0,0,tile.width,tile.height,0,0,tile.width,tile.height);
+  await pass(tile,idx,x0,0,src.naturalWidth,src.naturalHeight,11);
+  await pass(tile,idx,x0,0,src.naturalWidth,src.naturalHeight,6);
+  status('รูป '+(idx+1)+': ช่อง '+(i+1)+'/'+tiles,((idx+(i+1)/tiles)/imgs.length)*100)
+ }
+}
+async function scanAll(){
+ if(busy)return;if(!imgs.length){toast('เลือกรูปก่อน');return}
+ busy=true;res=[];render();await getWorker();
+ try{
+  for(let i=0;i<imgs.length;i++){status('กำลังสแกนรูป '+(i+1)+'/'+imgs.length,Math.round(i/imgs.length*100));await scanOne(imgs[i],i)}
+  status('เสร็จแล้ว • พบ '+res.length+' เลข',100);render();toast('สแกนเสร็จแล้ว')
+ }catch(e){console.error(e);status('OCR ผิดพลาด: '+e.message);toast('ลองใหม่ด้วยรูปชัดขึ้น')}
+ busy=false
+}
+$('#files').onchange=async e=>{
+ imgs=[];res=[];for(const f of e.target.files){let url=URL.createObjectURL(f),im=new Image();im.src=url;await im.decode();imgs.push({url,img:im})}
+ status('พร้อมสแกน '+imgs.length+' รูป • กด “สแกนทั้งหมด”');render()
+};
+$('#scan').onclick=scanAll;
+$('#clear').onclick=()=>{imgs=[];res=[];render();status('ล้างแล้ว')};
+async function clip(t){try{await navigator.clipboard.writeText(t);toast('คัดลอก '+t.split('\\n').length+' เลขแล้ว')}catch(e){prompt('คัดลอกข้อความนี้',t)}}
+$('#copy').onclick=()=>{let t=res.map(x=>x.text).join('\\n');if(t)clip(t);else toast('ยังไม่มีเลข')};
+$('#copyOn').onclick=()=>{let t=res.filter(x=>x.on).map(x=>x.text).join('\\n');if(t)clip(t);else toast('ไม่มีเลขที่เปิด')};
+$('#settings').onclick=()=>$('#modal').classList.add('open');$('#close').onclick=()=>$('#modal').classList.remove('open');
+$('#quality').onclick=()=>{high=!high;$('#quality').textContent=high?'คุณภาพ: สูง':'คุณภาพ: มาตรฐาน';toast(high?'เปิดคุณภาพสูง':'มาตรฐาน')};
+
+window.manual=async function(idx){
+ const card=$('#pics').children[idx],pv=card.querySelector('.preview'),img=pv.querySelector('img');
+ toast('ลากกรอบครอบเลข 6 หลักที่พลาด');
+ let start=null,rect=null;
+ const point=e=>{let q=pv.getBoundingClientRect();return{x:e.clientX-q.left,y:e.clientY-q.top}};
+ const down=e=>{start=point(e);pv.setPointerCapture?.(e.pointerId)};
+ const move=e=>{if(!start)return;let p=point(e),x=Math.min(start.x,p.x),y=Math.min(start.y,p.y),w=Math.abs(p.x-start.x),h=Math.abs(p.y-start.y);rect={x,y,w,h};let d=pv.querySelector('.drag');if(!d){d=document.createElement('div');d.className='drag';d.style.cssText='position:absolute;border:2px dashed #ffc928;pointer-events:none';pv.appendChild(d)}Object.assign(d.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px'})};
+ const up=async()=>{pv.removeEventListener('pointermove',move);pv.removeEventListener('pointerup',up);if(!rect)return;
+  await getWorker();let sx=img.naturalWidth/pv.clientWidth,sy=img.naturalHeight/pv.clientHeight,c=document.createElement('canvas');c.width=Math.round(rect.w*sx*2);c.height=Math.round(rect.h*sy*2);c.getContext('2d').drawImage(img,rect.x*sx,rect.y*sy,rect.w*sx,rect.h*sy,0,0,c.width,c.height);
+  let before=res.length;await pass(c,idx,0,0,img.naturalWidth,img.naturalHeight,6);let got=res.length-before;
+  if(!got)toast('ไม่พบเลข 6 หลักในกรอบ');else toast('เพิ่ม '+got+' เลข');render()
+ };
+ pv.addEventListener('pointerdown',down);pv.addEventListener('pointermove',move);pv.addEventListener('pointerup',up,{once:true})
+}
+</script>
+</body></html>
