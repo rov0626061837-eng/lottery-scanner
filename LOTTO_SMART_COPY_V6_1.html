@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071425">
+<title>LOTTO SMART COPY V6.1</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#071425;color:#f5f7fb;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans Thai",sans-serif}
+.wrap{max-width:900px;margin:auto;padding:18px 14px 50px}
+header{padding:10px 4px 18px}
+h1{font-size:27px;margin:0;font-weight:800}.sub{color:#9fb0c8;margin-top:6px;font-size:14px}
+.card{background:#0c1b2e;border:1px solid #1d3654;border-radius:22px;padding:16px;margin:12px 0;box-shadow:0 8px 30px #0002}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{border:0;border-radius:15px;padding:15px 12px;font-size:16px;font-weight:800;background:#18314f;color:white}
+.btn.primary{background:#18c978;color:#03150d}.btn.warn{background:#2c4160}.btn:disabled{opacity:.45}
+.file{display:block;background:#132944;border:1px dashed #4b6b91;border-radius:16px;padding:17px;text-align:center;color:#dce8f7;font-weight:700}
+input[type=file]{display:none}
+.status{font-size:14px;color:#9fb0c8;margin-top:10px;min-height:20px}
+.progress{height:9px;background:#16283d;border-radius:99px;overflow:hidden;margin-top:10px}.bar{height:100%;width:0;background:#18d681;transition:.2s}
+.big{font-size:20px;font-weight:800}.small{font-size:13px;color:#8ea3bd}
+.list{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.num{background:#10233a;border:1px solid #294564;border-radius:15px;padding:11px}
+.num input{width:100%;background:transparent;border:0;outline:0;color:white;font-size:22px;font-weight:800;letter-spacing:1px}
+.num .meta{display:flex;justify-content:space-between;color:#8ea3bd;font-size:12px;margin-top:4px}
+.num.low{border-color:#b86c6c;background:#281a20}.num.good{border-color:#2b805d}
+.row{display:flex;gap:8px;margin-top:8px}.mini{flex:1;border:0;border-radius:10px;padding:8px;background:#1a3452;color:#fff;font-weight:700}
+.copybox{width:100%;min-height:170px;background:#06111f;color:#dff8ea;border:1px solid #25425f;border-radius:16px;padding:12px;font-size:17px;line-height:1.55}
+.preview{position:relative;margin-top:12px;background:#020812;border-radius:18px;overflow:hidden;border:1px solid #24415f}
+.preview img{display:block;width:100%;height:auto}.boxes{position:absolute;inset:0}
+.box{position:absolute;border:2px solid #1df08b;background:#1df08b18;border-radius:5px;pointer-events:none}
+.box.low{border-color:#ffb34d;background:#ffb34d18}
+.box span{position:absolute;left:0;top:-20px;background:#12d777;color:#001b10;font:700 11px system-ui;padding:2px 5px;border-radius:4px;white-space:nowrap}
+.box.low span{background:#ffb34d}
+.tip{font-size:13px;color:#a9bad0;line-height:1.5}
+@media(max-width:600px){.list{grid-template-columns:1fr}h1{font-size:23px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>🎟️ LOTTO SMART COPY V6.1</h1>
+<div class="sub">เพิ่มรูป → ตรวจจับหลายรอบ → คัดเฉพาะเลข 6 หลัก</div>
+</header>
+
+<div class="card">
+<label class="file" for="files">📷 แตะเพื่อเพิ่มรูปสลากหลายรูป</label>
+<input id="files" type="file" accept="image/*" multiple>
+<div class="status" id="status">ยังไม่มีรูป</div>
+<div class="progress"><div class="bar" id="bar"></div></div>
+<div class="actions" style="margin-top:12px">
+<button class="btn primary" id="scan">🤖 สแกนแบบแม่นยำ</button>
+<button class="btn" id="copy">📋 คัดลอกทั้งหมด</button>
+<button class="btn warn" id="deep">🔎 ตรวจซ้ำเลขที่น่าสงสัย</button>
+<button class="btn warn" id="clear">🗑️ ล้างทั้งหมด</button>
+</div>
+</div>
+
+<div class="card">
+<div class="big">ผลลัพธ์: <span id="count">0</span> เลข</div>
+<div class="small">ไม่ลบเลขซ้ำจากคนละใบ • ถ้าความมั่นใจต่ำจะแสดงกรอบสีส้มให้ตรวจ</div>
+<div class="list" id="list"></div>
+</div>
+
+<div class="card">
+<div class="big">📋 ข้อความสำหรับคัดลอก</div>
+<textarea id="out" class="copybox" readonly placeholder="เมื่อสแกนเสร็จ เลข 6 หลักจะอยู่ตรงนี้..."></textarea>
+<div class="row"><button class="btn primary" id="copy2">คัดลอกเลขทั้งหมด</button></div>
+</div>
+
+<div id="previews"></div>
+
+<div class="card">
+<div class="big">ระบบ V6.1</div>
+<p class="tip">อ่านภาพหลายรูปแบบและหลายช่องซ้อนทับ แล้วรวมผลตามตำแหน่งของเลข ไม่รวมเลขด้วยค่าตัวเลขอย่างเดียว จึงไม่ควรเอาเลขคนละใบที่อยู่คนละตำแหน่งมาปนกัน</p>
+<p class="tip">เลขที่อ่านได้ความมั่นใจต่ำจะไม่ถูกลบทิ้ง แต่ทำเป็นสีส้มเพื่อให้ตรวจเองก่อนคัดลอก</p>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let files=[],results=[],worker=null,busy=false;
+
+$("files").onchange=e=>{
+  files=[...e.target.files];
+  $("status").textContent=files.length?`เพิ่มแล้ว ${files.length} รูป`:"ยังไม่มีรูป";
+  renderPreviews();
+};
+$("clear").onclick=()=>{
+  files=[];results=[];$("files").value="";
+  $("status").textContent="ล้างแล้ว";setProg(0,"ล้างแล้ว");render();renderPreviews();
+};
+$("copy").onclick=copyAll;$("copy2").onclick=copyAll;
+$("scan").onclick=()=>runScan(false);
+$("deep").onclick=deepScan;
+
+function setProg(p,msg){
+  $("bar").style.width=Math.max(0,Math.min(100,p))+"%";
+  $("status").textContent=msg;
+}
+function sixes(text){
+  const s=String(text||"").replace(/[^0-9]/g," ");
+  const out=[];
+  for(const token of s.split(/\s+/)){
+    if(/^\d{6}$/.test(token)) out.push(token);
+    else if(token.length>6){
+      for(let i=0;i<=token.length-6;i++){
+        const n=token.slice(i,i+6);
+        if(/^\d{6}$/.test(n))out.push(n);
+      }
+    }
+  }
+  return [...new Set(out)];
+}
+function iou(a,b){
+  const x1=Math.max(a.x,b.x),y1=Math.max(a.y,b.y);
+  const x2=Math.min(a.x+a.w,b.x+b.w),y2=Math.min(a.y+a.h,b.y+b.h);
+  const inter=Math.max(0,x2-x1)*Math.max(0,y2-y1);
+  const uni=a.w*a.h+b.w*b.h-inter;
+  return uni?inter/uni:0;
+}
+function nearSameBox(a,b){
+  const ax=a.x+a.w/2,ay=a.y+a.h/2,bx=b.x+b.w/2,by=b.y+b.h/2;
+  const dx=Math.abs(ax-bx),dy=Math.abs(ay-by);
+  const h=Math.max(8,Math.min(a.h,b.h));
+  return iou(a,b)>=0.25 || (dy<=h*0.75 && dx<=Math.max(a.w,b.w)*0.8);
+}
+function addCandidate(text,box,img,source,conf){
+  for(const n of sixes(text)){
+    const b={x:box.x,y:box.y,w:box.w,h:box.h};
+    // Merge only detections occupying the same physical area.
+    let cluster=results.find(r=>r.img===img && nearSameBox(r,b));
+    if(!cluster){
+      results.push({
+        text:n,img,x:b.x,y:b.y,w:b.w,h:b.h,
+        conf:Number.isFinite(conf)?conf:0,
+        votes:1,
+        variants:{[n]:1},
+        enabled:true
+      });
+    }else{
+      cluster.votes++;
+      cluster.variants[n]=(cluster.variants[n]||0)+1;
+      const best=Object.entries(cluster.variants).sort((a,b)=>b[1]-a[1])[0];
+      cluster.text=best[0];
+      cluster.conf=Math.max(cluster.conf,Number.isFinite(conf)?conf:0);
+      // Average/union the box to stabilize overlay.
+      cluster.x=Math.min(cluster.x,b.x);
+      cluster.y=Math.min(cluster.y,b.y);
+      cluster.w=Math.max(cluster.x+cluster.w,b.x+b.w)-cluster.x;
+      cluster.h=Math.max(cluster.y+cluster.h,b.y+b.h)-cluster.y;
+    }
+  }
+}
+function canvasFrom(img,scale=2,mode="gray",thr=170){
+  const maxW=2600;
+  const sc=Math.min(scale,maxW/img.naturalWidth);
+  const c=document.createElement("canvas");
+  c.width=Math.max(1,Math.round(img.naturalWidth*sc));
+  c.height=Math.max(1,Math.round(img.naturalHeight*sc));
+  const ctx=c.getContext("2d",{willReadFrequently:true});
+  ctx.drawImage(img,0,0,c.width,c.height);
+  const d=ctx.getImageData(0,0,c.width,c.height),p=d.data;
+  for(let i=0;i<p.length;i+=4){
+    let g=.299*p[i]+.587*p[i+1]+.114*p[i+2];
+    if(mode==="contrast")g=Math.max(0,Math.min(255,(g-128)*1.7+128));
+    if(mode==="binary")g=g<thr?0:255;
+    p[i]=p[i+1]=p[i+2]=g;
+  }
+  ctx.putImageData(d,0,0);
+  return c;
+}
+function cropCanvas(src,x,y,w,h){
+  const c=document.createElement("canvas");
+  c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));
+  c.getContext("2d").drawImage(src,x,y,w,h,0,0,c.width,c.height);
+  return c;
+}
+function makeTiles(c){
+  const out=[];
+  const cols=c.width>=c.height?4:3;
+  const rows=c.height>=c.width?5:4;
+  const tw=c.width/cols,th=c.height/rows;
+  const overlap=.18;
+  for(let r=0;r<rows;r++)for(let col=0;col<cols;col++){
+    const x=Math.max(0,Math.floor(col*tw-tw*overlap/2));
+    const y=Math.max(0,Math.floor(r*th-th*overlap/2));
+    const x2=Math.min(c.width,Math.ceil((col+1)*tw+tw*overlap/2));
+    const y2=Math.min(c.height,Math.ceil((r+1)*th+th*overlap/2));
+    out.push({c:cropCanvas(c,x,y,x2-x,y2-y),x,y,w:x2-x,h:y2-y,tag:"tile"});
+  }
+  return out;
+}
+async function ocrCanvas(c,psm){
+  await worker.setParameters({
+    tessedit_char_whitelist:"0123456789",
+    tessedit_pageseg_mode:String(psm),
+    preserve_interword_spaces:"1",
+    user_defined_dpi:"300"
+  });
+  return await worker.recognize(c,{rotateAuto:true},{blocks:true,tsv:true});
+}
+async function loadImg(file){
+  return await new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);img.onerror=reject;
+    img.src=URL.createObjectURL(file);
+  });
+}
+async function ensureWorker(){
+  if(worker)return;
+  worker=await Tesseract.createWorker("eng",1,{
+    logger:m=>{
+      if(m.status==="recognizing text"&&m.progress){
+        $("status").textContent=`กำลังอ่าน... ${Math.round(m.progress*100)}%`;
+      }
+    }
+  });
+}
+function score(r){
+  return (r.votes*18)+Math.min(40,Math.max(0,r.conf)*0.4);
+}
+function cleanResults(){
+  // Keep strong results. Low results remain only when there is no competing evidence.
+  results=results.filter(r=>r.text && /^\d{6}$/.test(r.text) && (r.votes>=2 || r.conf>=72));
+  results.sort((a,b)=>a.img-b.img||a.y-b.y||a.x-b.x);
+}
+async function runScan(){
+  if(busy||!files.length)return;
+  busy=true;$("scan").disabled=true;$("deep").disabled=true;results=[];
+  try{
+    await ensureWorker();
+    const total=files.length;let done=0;
+    for(let fi=0;fi<files.length;fi++){
+      const img=await loadImg(files[fi]);
+      const reps=[
+        canvasFrom(img,2,"gray"),
+        canvasFrom(img,2,"contrast"),
+        canvasFrom(img,2,"binary",150),
+        canvasFrom(img,2,"binary",190)
+      ];
+      for(let ri=0;ri<reps.length;ri++){
+        const full=reps[ri];
+        for(const psm of [11,6]){
+          const ret=await ocrCanvas(full,psm);
+          consumeWords(ret,fi,0,0,`full-${ri}-${psm}`);
+        }
+        const tiles=makeTiles(full);
+        for(let ti=0;ti<tiles.length;ti++){
+          const t=tiles[ti];
+          for(const psm of [11,6]){
+            const ret=await ocrCanvas(t.c,psm);
+            consumeWords(ret,fi,t.x,t.y,`tile-${ri}-${ti}-${psm}`);
+          }
+        }
+      }
+      done++;setProg(done/total*100,`เสร็จรูป ${done}/${total} • พบ ${results.length} จุด`);
+    }
+    cleanResults();render();setProg(100,`เสร็จแล้ว • ได้ ${results.length} เลข`);
+  }catch(e){
+    console.error(e);setProg(0,"OCR ขัดข้อง: "+(e?.message||e));
+  }finally{
+    busy=false;$("scan").disabled=false;$("deep").disabled=false;
+  }
+}
+function consumeWords(ret,fi,offX,offY,source){
+  const words=ret?.data?.words||[];
+  for(const wd of words){
+    const txt=String(wd.text||"").replace(/\s+/g,"");
+    const b=wd.bbox||{};
+    const w=Math.max(1,(b.x1||0)-(b.x0||0)),h=Math.max(1,(b.y1||0)-(b.y0||0));
+    if(w<8||h<5)continue;
+    addCandidate(txt,{
+      x:offX+(b.x0||0),y:offY+(b.y0||0),w,h
+    },fi,source,Number(wd.conf)||0);
+  }
+}
+async function deepScan(){
+  if(busy||!files.length)return;
+  const suspects=results.filter(r=>r.conf<80||r.votes<3);
+  if(!suspects.length){
+    $("status").textContent="ไม่มีเลขที่ต้องตรวจซ้ำ";
+    return;
+  }
+  busy=true;$("scan").disabled=true;$("deep").disabled=true;
+  try{
+    await ensureWorker();
+    let done=0;
+    for(const r of suspects){
+      const img=await loadImg(files[r.img]);
+      const base=canvasFrom(img,3,"gray");
+      const pad=Math.max(25,Math.round(Math.max(r.w,r.h)*1.8));
+      const x=Math.max(0,Math.round(r.x-pad)),y=Math.max(0,Math.round(r.y-pad));
+      const x2=Math.min(base.width,Math.round(r.x+r.w+pad)),y2=Math.min(base.height,Math.round(r.y+r.h+pad));
+      const crop=cropCanvas(base,x,y,x2-x,y2-y);
+      for(const psm of [6,7,8,13]){
+        const ret=await ocrCanvas(crop,psm);
+        consumeWords(ret,r.img,x,y,`deep-${psm}`);
+      }
+      done++;setProg(done/suspects.length*100,`ตรวจซ้ำ ${done}/${suspects.length}`);
+    }
+    cleanResults();render();setProg(100,`ตรวจซ้ำเสร็จ • เหลือ ${results.length} เลข`);
+  }catch(e){console.error(e);setProg(0,"ตรวจซ้ำขัดข้อง: "+(e?.message||e));}
+  finally{busy=false;$("scan").disabled=false;$("deep").disabled=false;}
+}
+async function copyAll(){
+  const txt=results.filter(r=>r.enabled!==false).map(r=>r.text).join("\n");
+  $("out").value=txt;
+  try{
+    await navigator.clipboard.writeText(txt);
+    $("status").textContent=`คัดลอกแล้ว ${txt?txt.split("\n").length:0} เลข`;
+  }catch{
+    $("out").focus();$("out").select();document.execCommand("copy");
+    $("status").textContent="คัดลอกแล้ว";
+  }
+}
+function render(){
+  $("count").textContent=results.filter(r=>r.enabled!==false).length;
+  $("list").innerHTML=results.map((r,i)=>{
+    const good=r.votes>=2||r.conf>=72;
+    return `<div class="num ${good?'good':'low'}">
+      <input value="${r.text}" maxlength="6" inputmode="numeric" data-i="${i}">
+      <div class="meta"><span>รูป ${r.img+1}</span><span>${Math.round(r.conf||0)}% • ${r.votes||1} รอบ</span></div>
+      <div class="row">
+        <button class="mini" onclick="toggle(${i})">${r.enabled===false?'เปิดเลข':'ปิดเลข'}</button>
+        <button class="mini" onclick="focusBox(${i})">ดูตำแหน่ง</button>
+      </div>
+    </div>`;
+  }).join("");
+  $("list").querySelectorAll("input").forEach(inp=>{
+    inp.oninput=e=>{
+      const i=Number(e.target.dataset.i);
+      results[i].text=e.target.value.replace(/\D/g,"").slice(0,6);
+      updateOut();renderPreviews();
+    };
+  });
+  updateOut();renderPreviews();
+}
+function updateOut(){
+  $("out").value=results.filter(r=>r.enabled!==false).map(r=>r.text).join("\n");
+}
+window.toggle=i=>{results[i].enabled=results[i].enabled===false;render()};
+window.focusBox=i=>{
+  const el=document.querySelector(`[data-box="${i}"]`);
+  if(el)el.scrollIntoView({behavior:"smooth",block:"center"});
+};
+function renderPreviews(){
+  const holder=$("previews");holder.innerHTML="";
+  files.forEach((f,fi)=>{
+    const card=document.createElement("div");card.className="card";
+    const img=document.createElement("img");
+    const layer=document.createElement("div");layer.className="boxes";
+    const preview=document.createElement("div");preview.className="preview";
+    preview.append(img,layer);
+    const title=document.createElement("div");title.className="big";title.textContent=`รูปที่ ${fi+1}`;
+    card.append(title,preview);holder.appendChild(card);
+    img.src=URL.createObjectURL(f);
+    img.onload=()=>{
+      const nw=img.naturalWidth,nh=img.naturalHeight;
+      results.forEach((r,i)=>{
+        if(r.img!==fi)return;
+        const d=document.createElement("div");
+        const good=r.votes>=2||r.conf>=72;
+        d.className="box"+(good?"":" low");d.dataset.box=i;
+        // OCR coordinates are in a canvas capped at 2600px wide.
+        const scale=Math.min(2,2600/nw);
+        const cw=nw*scale,ch=nh*scale;
+        d.style.left=(r.x/cw*100)+"%";
+        d.style.top=(r.y/ch*100)+"%";
+        d.style.width=(r.w/cw*100)+"%";
+        d.style.height=(r.h/ch*100)+"%";
+        d.innerHTML=`<span>${r.text}</span>`;
+        layer.appendChild(d);
+      });
+    };
+  });
+}
+</script>
+</body>
+</html>
